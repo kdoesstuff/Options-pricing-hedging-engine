@@ -1,0 +1,71 @@
+{
+  "project": {
+    "name": "Comprehensive Financial Mathematics Simulation",
+    "version": "1.0.0",
+    "description": "Complete option pricing and risk management system",
+    "created": "2025-10-15T17:17:11.742164"
+  },
+  "models": {
+    "bsm": {
+      "description": "Black-Scholes-Merton analytical model",
+      "use_cases": [
+        "European options",
+        "benchmark pricing"
+      ]
+    },
+    "crr": {
+      "description": "Cox-Ross-Rubinstein binomial model",
+      "use_cases": [
+        "American options",
+        "convergence analysis"
+      ],
+      "default_steps": 100
+    },
+    "monte_carlo": {
+      "description": "Monte Carlo simulation using GBM",
+      "use_cases": [
+        "Path-dependent options",
+        "risk analysis"
+      ],
+      "default_simulations": 100000
+    },
+    "ml": {
+      "description": "Machine learning based pricing",
+      "model_file": "ml_model.pkl",
+      "use_cases": [
+        "Market price prediction",
+        "alternative pricing"
+      ]
+    }
+  },
+  "strategies": {
+    "covered_call": {
+      "description": "Buy stock, sell call option",
+      "risk_profile": "Limited upside, downside protection"
+    },
+    "long_straddle": {
+      "description": "Buy call and put at same strike",
+      "risk_profile": "Profits from high volatility"
+    },
+    "delta_neutral": {
+      "description": "Volatility trading with delta hedge",
+      "risk_profile": "Market neutral, volatility exposure"
+    }
+  },
+  "default_parameters": {
+    "initial_capital": 10000,
+    "transaction_cost_rate": 0.001,
+    "rebalance_frequency": 1,
+    "risk_free_rate_source": "10Y_Treasury",
+    "volatility_window": 252
+  },
+  "visualization": {
+    "default_figsize": [
+      12,
+      8
+    ],
+    "color_scheme": "husl",
+    "save_plots": false,
+    "plot_directory": "plots"
+  }
+}
