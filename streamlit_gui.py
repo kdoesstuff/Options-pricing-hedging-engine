@@ -217,14 +217,18 @@ class StreamlitGUI:
             
             if stock_data is not None and not stock_data.empty:
                 st.session_state.stock_data = stock_data
-                
-                # Get stock info  
+
+                # Get stock info
                 stock_info = self.data_handler.get_stock_info(ticker)
                 st.session_state.stock_info = stock_info
-                
-                st.sidebar.success(f"SUCCESS: Successfully fetched data for {ticker}")
+
+                if getattr(self.data_handler, 'last_fetch_source', None) == 'snapshot':
+                    st.sidebar.success(f"Loaded {ticker} from the bundled 1y snapshot "
+                                       "(live feed unavailable right now).")
+                else:
+                    st.sidebar.success(f"Successfully fetched live data for {ticker}")
             else:
-                st.sidebar.error(f"ERROR: Failed to fetch data for {ticker}")
+                st.sidebar.error(f"Failed to fetch data for {ticker}")
                 
         except Exception as e:
             st.sidebar.error(f"ERROR: Error fetching data: {str(e)}")

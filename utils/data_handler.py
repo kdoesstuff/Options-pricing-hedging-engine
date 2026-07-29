@@ -27,6 +27,7 @@ class DataHandler:
         """Initialize DataHandler with default parameters."""
         self.data_cache = {}
         self.volatility_cache = {}
+        self.last_fetch_source = None  # 'live', 'snapshot', or 'none'
     
     def fetch_stock_data(self, ticker: str, period: str = "2y") -> pd.DataFrame:
         """
@@ -55,11 +56,16 @@ class DataHandler:
             stock = yf.Ticker(ticker)
             data = stock.history(period=period)
 
-            if data.empty:
-                raise ValueError(f"No data found for ticker {ticker}")
+            # Rate-limited responses can come back non-empty but full of NaNs;
+            # treat those as failures so the snapshot fallback kicks in.
+            if not data.empty:
+                data = data.dropna(subset=['Close'])
+            if data.empty or len(data) < 10:
+                raise ValueError(f"No usable data found for ticker {ticker}")
 
             # Cache the data
             self.data_cache[cache_key] = data
+            self.last_fetch_source = 'live'
 
             print(f"Successfully fetched {len(data)} days of data for {ticker}")
             return data
@@ -72,7 +78,9 @@ class DataHandler:
             if fallback is not None:
                 print(f"Live fetch failed ({e}); using bundled snapshot for {ticker}.")
                 self.data_cache[cache_key] = fallback
+                self.last_fetch_source = 'snapshot'
                 return fallback
+            self.last_fetch_source = 'none'
             raise Exception(f"Error fetching data for {ticker}: {str(e)}")
 
     @staticmethod
@@ -173,8 +181,11 @@ class DataHandler:
             # Fetch data
             data = self.fetch_stock_data(ticker, period="2y")
             
-            # Calculate metrics
-            current_price = float(data['Close'].iloc[-1])
+            # Calculate metrics (use the last valid close, never NaN)
+            close_clean = data['Close'].dropna()
+            if close_clean.empty:
+                raise ValueError(f"No valid closing prices for {ticker}")
+            current_price = float(close_clean.iloc[-1])
             volatility_1y = self.calculate_historical_volatility(data, window=252)
             volatility_6m = self.calculate_historical_volatility(data, window=126)
             volatility_3m = self.calculate_historical_volatility(data, window=63)
