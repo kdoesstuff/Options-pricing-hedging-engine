@@ -220,9 +220,10 @@ class StreamlitGUI:
 
                 # Get stock info
                 stock_info = self.data_handler.get_stock_info(ticker)
+                stock_info['source'] = getattr(self.data_handler, 'last_fetch_source', None) or 'live'
                 st.session_state.stock_info = stock_info
 
-                if getattr(self.data_handler, 'last_fetch_source', None) == 'snapshot':
+                if stock_info['source'] == 'snapshot':
                     st.sidebar.success(f"Loaded {ticker} from the bundled 1y snapshot "
                                        "(live feed unavailable right now).")
                 else:
@@ -245,6 +246,13 @@ class StreamlitGUI:
             st.metric("Current Price", f"${info.get('current_price', 0):.2f}")
         with col2:
             st.metric("1Y Return", f"{info.get('annual_return', 0):.1f}%")
+
+        # Data provenance: which close this price is, and where it came from
+        end_date = info.get('data_end_date')
+        source = info.get('source', 'live')
+        if end_date:
+            label = "live Yahoo Finance data" if source == 'live' else "bundled snapshot"
+            st.sidebar.caption(f"Close as of {end_date} ({label})")
         
         # Volatility metrics
         st.sidebar.markdown("**Volatility Analysis:**")
