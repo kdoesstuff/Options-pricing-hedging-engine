@@ -182,11 +182,15 @@ class DataHandler:
             # Calculate additional metrics
             returns_1y = self.calculate_returns(data, window=252)
             avg_volume = float(data['Volume'].tail(30).mean())
-            
-            # Get basic info from yfinance
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            
+
+            # Company metadata from yfinance is a separate network call; it can
+            # fail (offline, rate limits) even when price data is available, so
+            # never let it break the whole request.
+            try:
+                info = yf.Ticker(ticker).info or {}
+            except Exception:
+                info = {}
+
             stock_info = {
                 'ticker': ticker.upper(),
                 'current_price': current_price,
@@ -195,6 +199,13 @@ class DataHandler:
                 'volatility_6m': volatility_6m,
                 'volatility_3m': volatility_3m,
                 'returns_1y': returns_1y,
+                # Display-ready aliases (percentages)
+                'annual_return': returns_1y * 100,
+                'volatility_analysis': {
+                    '1Y Vol': volatility_1y * 100,
+                    '6M Vol': volatility_6m * 100,
+                    '3M Vol': volatility_3m * 100,
+                },
                 'avg_volume_30d': avg_volume,
                 'market_cap': info.get('marketCap', 'N/A'),
                 'sector': info.get('sector', 'N/A'),
@@ -203,7 +214,7 @@ class DataHandler:
                 'data_end_date': data.index[-1].strftime('%Y-%m-%d'),
                 'total_trading_days': len(data)
             }
-            
+
             return stock_info
             
         except Exception as e:

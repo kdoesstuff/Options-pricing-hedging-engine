@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.9+ (3.10/3.11 recommended)
-- Internet connection (optional — bundled market-data snapshots are used as a fallback)
+- Internet connection (optional, the bundled market data snapshots are used as a fallback)
 
 ## Setup
 
@@ -40,6 +40,6 @@ python setup_sample_data.py   # regenerate the ML model and sample data
 
 ## Troubleshooting
 
-- **yfinance errors / no internet** — the app automatically falls back to the bundled AAPL/MSFT/GOOGL/TSLA/AMZN snapshots; you can also enter all option parameters manually in the sidebar.
-- **GUI won't start** — `pip install --upgrade streamlit plotly`, then `streamlit run streamlit_gui.py`. Manually visit `http://localhost:8501` if the browser doesn't open.
-- **Slow Monte Carlo / trees** — reduce the simulation count or tree steps in the sidebar.
+- **yfinance errors / no internet**: the app automatically falls back to the bundled AAPL/MSFT/GOOGL/TSLA/AMZN snapshots. You can also enter all option parameters manually in the sidebar.
+- **GUI won't start**: `pip install --upgrade streamlit plotly`, then `streamlit run streamlit_gui.py`. Manually visit `http://localhost:8501` if the browser doesn't open.
+- **Slow Monte Carlo / trees**: reduce the simulation count or tree steps in the sidebar.

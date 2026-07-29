@@ -43,7 +43,7 @@ class StreamlitGUI:
         """Configure Streamlit page settings"""
         st.set_page_config(
             page_title="Financial Mathematics Analyzer",
-            page_icon="�",
+            page_icon="",
             layout="wide",
             initial_sidebar_state="expanded",
             menu_items={
@@ -92,13 +92,13 @@ class StreamlitGUI:
     
     def initialize_session_state(self):
         """Initialize Streamlit session state variables"""
-        if 'stock_data' not in st.session_state:
+        if 'stock_data'not in st.session_state:
             st.session_state.stock_data = None
-        if 'stock_info' not in st.session_state:
+        if 'stock_info'not in st.session_state:
             st.session_state.stock_info = None
-        if 'option_params' not in st.session_state:
+        if 'option_params'not in st.session_state:
             st.session_state.option_params = {}
-        if 'model_results' not in st.session_state:
+        if 'model_results'not in st.session_state:
             st.session_state.model_results = {}
     
     def render_header(self):
@@ -124,7 +124,7 @@ class StreamlitGUI:
             help="Enter a valid stock ticker (e.g., AAPL, MSFT, GOOGL)"
         ).upper()
         
-        fetch_button = st.sidebar.button("📥 Fetch Stock Data", type="primary")
+        fetch_button = st.sidebar.button("Fetch Stock Data", type="primary")
         
         if fetch_button and ticker:
             with st.spinner("Fetching stock data..."):
@@ -305,22 +305,18 @@ class StreamlitGUI:
         results = {}
         
         # Import pricing functions
-        from models.pricing_models import BSM_price, CRR_price, MC_price
-        
+        from models.pricing_models import BSM_price, CRR_price, MonteCarloModel
+
         # BSM Model
         results['BSM'] = BSM_price(S, K, T, r, sigma, option_type)
-        
+
         # Binomial Model
         results['Binomial'] = CRR_price(S, K, T, r, sigma, n_steps, option_type)
-        
-        # Monte Carlo Model
-        mc_result = MC_price(S, K, T, r, sigma, n_simulations, option_type)
-        if isinstance(mc_result, dict):
-            results['Monte Carlo'] = mc_result['price']
-            results['MC Std Error'] = mc_result.get('std_error', 0.0)
-        else:
-            results['Monte Carlo'] = mc_result
-            results['MC Std Error'] = 0.0
+
+        # Monte Carlo Model (full result so we get the true standard error)
+        mc_result = MonteCarloModel.european_price(S, K, T, r, sigma, n_simulations, option_type)
+        results['Monte Carlo'] = mc_result['price']
+        results['MC Std Error'] = mc_result.get('standard_error', 0.0)
         
         # ML Model (if available)
         try:
@@ -357,10 +353,10 @@ class StreamlitGUI:
         
         with col3:
             mc_label = f"${results['Monte Carlo']:.4f}"
-            if 'MC Std Error' in results:
+            if 'MC Std Error'in results:
                 mc_label += f" ± {results['MC Std Error']:.4f}"
             st.metric(
-                "🎲 Monte Carlo",
+                "Monte Carlo",
                 mc_label,
                 f"{results['Monte Carlo'] - results['BSM']:+.4f}",
                 help="Geometric Brownian Motion simulation"
@@ -369,13 +365,13 @@ class StreamlitGUI:
         with col4:
             if results.get('ML Model') is not None:
                 st.metric(
-                    "🤖 ML Model",
+                    "ML Model",
                     f"${results['ML Model']:.4f}",
                     f"{results['ML Model'] - results['BSM']:+.4f}",
                     help="Machine Learning prediction"
                 )
             else:
-                st.metric("🤖 ML Model", "N/A", help="Model not available")
+                st.metric("ML Model", "N/A", help="Model not available")
         
         # Price comparison chart
         self.plot_model_comparison(results, params)
@@ -407,7 +403,7 @@ class StreamlitGUI:
                 x=models,
                 y=prices,
                 marker_color=colors,
-                text=[f"${p:.4f}" for p in prices],
+                text=[f"${p:.4f}"for p in prices],
                 textposition='auto',
             )
         ])
@@ -426,14 +422,14 @@ class StreamlitGUI:
         df_results = pd.DataFrame([
             {
                 'Model': model,
-                'Price': f"${price:.6f}" if price is not None else "N/A",
-                'Difference from BSM': f"{price - results['BSM']:+.6f}" if price is not None and model != 'BSM' else "—"
+                'Price': f"${price:.6f}"if price is not None else "N/A",
+                'Difference from BSM': f"{price - results['BSM']:+.6f}"if price is not None and model != 'BSM'else "—"
             }
             for model, price in results.items()
             if model not in ['MC Std Error'] and price is not None
         ])
         
-        st.markdown("### 📋 Detailed Results")
+        st.markdown("### Detailed Results")
         st.dataframe(df_results, use_container_width=True)
         
         # Add detailed option price curves (like terminal version)
@@ -441,7 +437,7 @@ class StreamlitGUI:
         self.create_option_price_curves(params, results)
         
         # Add volatility surface
-        st.markdown("### 🌊 Volatility Surface Analysis") 
+        st.markdown("### Volatility Surface Analysis") 
         self.create_volatility_surface(params)
 
     def create_option_price_curves(self, params: Dict[str, Any], results: Dict[str, float]):
@@ -556,7 +552,7 @@ class StreamlitGUI:
         st.plotly_chart(fig, use_container_width=True)
         
         # Add statistics table
-        current_intrinsic = max(0, S - K) if option_type == 'call' else max(0, K - S)
+        current_intrinsic = max(0, S - K) if option_type == 'call'else max(0, K - S)
         current_time_value = results['BSM'] - current_intrinsic
         
         col1, col2, col3, col4 = st.columns(4)
@@ -663,8 +659,13 @@ class StreamlitGUI:
     def render_greeks_analysis(self, params: Dict[str, Any]):
         """Render Greeks analysis"""
         st.markdown('<h2 class="sub-header">Greeks Analysis</h2>', unsafe_allow_html=True)
-        
+
+        # Persist across reruns so changing the visualization selector below
+        # does not clear the results.
         if st.button("Calculate Greeks", key="calc_greeks"):
+            st.session_state.greeks_requested = True
+
+        if st.session_state.get('greeks_requested', False):
             with st.spinner("Calculating Greeks..."):
                 self.calculate_and_display_greeks(params)
     
@@ -906,7 +907,7 @@ class StreamlitGUI:
         self.create_greeks_sensitivity_plots(params)
         
         # Add practical interpretation (like terminal version)
-        st.markdown("### 📖 Practical Interpretation")
+        st.markdown("### Practical Interpretation")
         greeks = calculate_greeks(S_base, K, T, r, sigma, option_type)
         
         col1, col2 = st.columns(2)
@@ -920,19 +921,19 @@ class StreamlitGUI:
         with col2:
             st.markdown("**Risk Management Guidelines:**")
             if abs(greeks['delta']) > 0.5:
-                st.write("🔴 High directional risk - consider hedging")
+                st.write("High directional risk - consider hedging")
             else:
-                st.write("🟢 Moderate directional risk")
+                st.write("Moderate directional risk")
                 
             if greeks['gamma'] > 0.1:
-                st.write("🔴 High gamma risk - delta hedging needed")
+                st.write("High gamma risk - delta hedging needed")
             else:
-                st.write("🟢 Manageable gamma risk")
+                st.write("Manageable gamma risk")
                 
             if abs(greeks['theta']) > 0.05:
-                st.write("🟡 Significant time decay - monitor closely")
+                st.write("Significant time decay - monitor closely")
             else:
-                st.write("🟢 Low time decay impact")
+                st.write("Low time decay impact")
 
     def create_greeks_sensitivity_plots(self, params: Dict[str, Any]):
         """Create detailed Greeks sensitivity plots (like terminal version)"""
@@ -1198,7 +1199,7 @@ class StreamlitGUI:
                     colorbar=dict(title="Stock Price ($)", x=0.45),
                     showscale=True
                 ),
-                text=[f"${z:.1f}" for z in z_stock],
+                text=[f"${z:.1f}"for z in z_stock],
                 textposition="middle center",
                 hovertemplate="%{text}<extra></extra>",
                 name="Stock Prices"
@@ -1220,7 +1221,7 @@ class StreamlitGUI:
                     colorbar=dict(title="Option Value ($)", x=1.02),
                     showscale=True
                 ),
-                text=[f"${z:.3f}" for z in z_option],
+                text=[f"${z:.3f}"for z in z_option],
                 textposition="middle center",
                 hovertemplate="%{text}<extra></extra>",
                 name="Option Values"
@@ -1503,7 +1504,7 @@ class StreamlitGUI:
                 colorbar=dict(title="Option Value ($)"),
                 line=dict(width=2, color='white')
             ),
-            text=[f"${price:.0f}" for price in node_stock_prices],
+            text=[f"${price:.0f}"for price in node_stock_prices],
             textposition="middle center",
             textfont=dict(size=10, color="white"),
             hovertemplate="%{hovertext}<extra></extra>",
@@ -1557,14 +1558,14 @@ class StreamlitGUI:
             option_tree = results.get('option_tree')
             
             if stock_tree is not None and option_tree is not None:
-                st.markdown("### � Interactive Tree Visualizations")
+                st.markdown("### Interactive Tree Visualizations")
                 
                 # Create tabs for different visualizations
                 viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
                     "3D Tree Network", 
                     "Tree Heatmap", 
-                    "🔗 Network Graph",
-                    "📋 Data Tables"
+                    "Network Graph",
+                    "Data Tables"
                 ])
                 
                 with viz_tab1:
@@ -1587,14 +1588,14 @@ class StreamlitGUI:
                         tree_display = self.format_tree_for_display(stock_tree, "Stock Prices")
                         st.text(tree_display)
                     with col2:
-                        st.markdown("**💰 Option Values**")
+                        st.markdown("** Option Values**")
                         tree_display = self.format_tree_for_display(option_tree, "Option Values")
                         st.text(tree_display)
             
             # Handle American option early exercise indicators
             if american and results.get('exercise_decisions') is not None:
                 exercise_decisions = results['exercise_decisions']
-                st.markdown("### ⚡ Early Exercise Analysis")
+                st.markdown("### Early Exercise Analysis")
                 early_nodes = []
                 for i in range(len(exercise_decisions)):
                     for j in range(len(exercise_decisions[i])):
@@ -1649,16 +1650,12 @@ class StreamlitGUI:
         mc_errors = []
         mc_std_errors = []
         
-        from models.pricing_models import MC_price
+        from models.pricing_models import MonteCarloModel
         for sims in mc_sims:
-            result = MC_price(S, K, T, r, sigma, sims, option_type)
-            if isinstance(result, dict):
-                price = result['price']
-                std_err = result.get('std_error', 0.0)
-            else:
-                price = result
-                std_err = 0.0
-            
+            result = MonteCarloModel.european_price(S, K, T, r, sigma, sims, option_type, seed=42)
+            price = result['price']
+            std_err = result.get('standard_error', 0.0)
+
             mc_prices.append(price)
             mc_errors.append(abs(price - bsm_price))
             mc_std_errors.append(std_err)
@@ -1715,7 +1712,7 @@ class StreamlitGUI:
         st.plotly_chart(fig, use_container_width=True)
         
         # Add convergence insights like terminal version
-        st.markdown("### 🔍 Convergence Analysis Insights")
+        st.markdown("### Convergence Analysis Insights")
         
         col1, col2 = st.columns(2)
         
@@ -1735,23 +1732,23 @@ class StreamlitGUI:
             
         # Convergence quality assessment
         if final_crr_error < 0.001:
-            crr_quality = "🟢 Excellent"
+            crr_quality = "Excellent"
         elif final_crr_error < 0.01:
-            crr_quality = "🟡 Good"
+            crr_quality = "Good"
         else:
-            crr_quality = "🔴 Needs more steps"
+            crr_quality = "Needs more steps"
             
         if final_mc_error < final_std_error * 2:
-            mc_quality = "🟢 Excellent"
+            mc_quality = "Excellent"
         elif final_mc_error < final_std_error * 5:
-            mc_quality = "🟡 Good" 
+            mc_quality = "Good" 
         else:
-            mc_quality = "🔴 Needs more simulations"
+            mc_quality = "Needs more simulations"
             
         st.markdown(f"**Quality Assessment:** CRR: {crr_quality} | Monte Carlo: {mc_quality}")
         
         # Display convergence table
-        st.markdown("### 📋 Convergence Results")
+        st.markdown("### Convergence Results")
         
         col1, col2 = st.columns(2)
         
@@ -1759,18 +1756,18 @@ class StreamlitGUI:
             st.markdown("**CRR Convergence**")
             crr_df = pd.DataFrame({
                 'Steps': crr_steps,
-                'Price': [f"${p:.6f}" for p in crr_prices],
-                'Error': [f"${e:.6f}" for e in crr_errors]
+                'Price': [f"${p:.6f}"for p in crr_prices],
+                'Error': [f"${e:.6f}"for e in crr_errors]
             })
             st.dataframe(crr_df, use_container_width=True)
         
         with col2:
             st.markdown("**Monte Carlo Convergence**")
             mc_df = pd.DataFrame({
-                'Simulations': [f"{s:,}" for s in mc_sims],
-                'Price': [f"${p:.6f}" for p in mc_prices], 
-                'Error': [f"${e:.6f}" for e in mc_errors],
-                'Std Error': [f"${se:.6f}" for se in mc_std_errors]
+                'Simulations': [f"{s:,}"for s in mc_sims],
+                'Price': [f"${p:.6f}"for p in mc_prices], 
+                'Error': [f"${e:.6f}"for e in mc_errors],
+                'Std Error': [f"${se:.6f}"for se in mc_std_errors]
             })
             st.dataframe(mc_df, use_container_width=True)
             
@@ -1910,7 +1907,7 @@ class StreamlitGUI:
             st.metric("Best Accuracy", f"{best_accuracy:.1%}")
             
         with col2:
-            st.markdown("**⚡ Performance Analysis**")
+            st.markdown("** Performance Analysis**")
             best_efficiency = max(efficiency)
             efficient_method = methods[list(efficiency).index(best_efficiency)]
             st.metric("Most Efficient", efficient_method)
@@ -1923,7 +1920,7 @@ class StreamlitGUI:
                 st.write("SUCCESS: Deterministic convergence")
             else:
                 st.info("Monte Carlo competitive")
-                st.write("🎲 Probabilistic convergence")
+                st.write("Probabilistic convergence")
         
         # Add recommendations
         st.markdown("### Method Selection Recommendations")
@@ -2060,7 +2057,7 @@ class StreamlitGUI:
         percentile_values = [np.percentile(final_prices, p) for p in percentiles]
         
         fig.add_trace(
-            go.Bar(x=[f"{p}%" for p in percentiles], y=percentile_values,
+            go.Bar(x=[f"{p}%"for p in percentiles], y=percentile_values,
                   name='Price Percentiles', marker_color='orange'),
             row=2, col=2
         )
@@ -2131,7 +2128,7 @@ class StreamlitGUI:
             st.write(f"• Maximum Payoff: ${max_payoff:.2f}")
         
         # Detailed statistics table
-        st.markdown("### 📋 Detailed Statistics")
+        st.markdown("### Detailed Statistics")
         
         stats_df = pd.DataFrame({
             'Metric': ['Paths Generated', 'Time Steps', 'Option Value', 'Standard Error', 
@@ -2179,14 +2176,14 @@ class StreamlitGUI:
                     help="Number of historical days to use"
                 )
             
-            if analysis_mode == "🔍 Individual Strategy Analysis":
+            if analysis_mode == "Individual Strategy Analysis":
                 # Individual strategy selection
-                st.markdown("### 🎮 Strategy Selection")
+                st.markdown("### Strategy Selection")
                 strategy_options = {
                     'covered_call': 'Covered Call Strategy',
-                    'long_straddle': '🎯 Long Straddle Strategy', 
+                    'long_straddle': 'Long Straddle Strategy',
                     'delta_neutral': 'Delta Neutral Strategy',
-                    'buy_hold': '💰 Buy & Hold Benchmark'
+                    'buy_hold': 'Buy & Hold Benchmark'
                 }
                 
                 selected_strategy = st.selectbox(
@@ -2241,7 +2238,7 @@ class StreamlitGUI:
                             help="Days between delta hedge rebalancing"
                         )
                 
-                if st.button("� Run Individual Strategy Analysis", key="individual_strategy"):
+                if st.button("Run Individual Strategy Analysis", key="individual_strategy"):
                     with st.spinner(f"Running detailed analysis for {strategy_options[selected_strategy]}..."):
                         extra_params = {}
                         if selected_strategy in ['covered_call', 'long_straddle']:
@@ -2263,40 +2260,55 @@ class StreamlitGUI:
             st.warning("Please fetch stock data first to run strategy analysis")
     
     def perform_strategy_analysis(self, params: Dict[str, Any], capital: float, days: int):
-        """Perform trading strategy analysis"""
+        """Run all strategies through the real backtest engine and display results."""
         try:
             # Get historical data
             backtest_data = st.session_state.stock_data.tail(days).copy()
-            prices = backtest_data['Close'].values
-            
+            n_days = len(backtest_data)
+
             S, K, T, r, sigma = params['S'], params['K'], params['T'], params['r'], params['sigma']
-            
-            # Calculate simple strategy returns
-            returns = np.diff(prices) / prices[:-1]
-            
-            # Simple strategy simulation results
-            strategy_results = {
-                'buy_hold': {
-                    'total_return': ((prices[-1] / prices[0]) - 1) * 100,
-                    'annualized_return': ((prices[-1] / prices[0]) ** (252/len(prices)) - 1) * 100,
-                    'volatility': np.std(returns) * np.sqrt(252) * 100,
-                    'sharpe_ratio': (np.mean(returns) * 252) / (np.std(returns) * np.sqrt(252)) if np.std(returns) > 0 else 0,
-                    'max_drawdown': 0.0,  # Simplified
-                    'final_value': capital * (prices[-1] / prices[0])
-                },
-                'covered_call': {
-                    'total_return': ((prices[-1] / prices[0]) - 1) * 100 * 0.8,  # Reduced due to cap
-                    'annualized_return': ((prices[-1] / prices[0]) ** (252/len(prices)) - 1) * 100 * 0.8,
-                    'volatility': np.std(returns) * np.sqrt(252) * 100 * 0.7,  # Lower volatility
-                    'sharpe_ratio': (np.mean(returns) * 252 * 0.8) / (np.std(returns) * np.sqrt(252) * 0.7) if np.std(returns) > 0 else 0,
-                    'max_drawdown': 0.0,
-                    'final_value': capital * (prices[-1] / prices[0]) * 0.85
-                }
+
+            strategies = TradingStrategies(capital)
+            price0 = float(backtest_data['Close'].iloc[0])
+
+            # Covered call lot size: use 100-share contracts when affordable,
+            # otherwise scale down so the backtest is still meaningful.
+            lot = 100 if capital >= 100 * price0 else max(1, int(capital / (2 * price0)) or 1)
+
+            raw_results = {
+                'buy_hold': strategies.buy_and_hold_benchmark(backtest_data),
+                'covered_call': strategies.covered_call_strategy(
+                    backtest_data, K, T, r, sigma, shares_per_contract=lot),
+                'long_straddle': strategies.long_straddle_strategy(
+                    backtest_data, K, T, r, sigma),
+                'delta_neutral': strategies.delta_neutral_speculation(
+                    backtest_data, K, T, r, sigma, sigma * 1.1),
             }
-            
-            # Display strategy performance metrics
-            self.display_strategy_results(strategy_results, params)
-            
+
+            # Adapt engine output (fractions) to the display format (percentages)
+            strategy_results = {}
+            for key, res in raw_results.items():
+                if res.get('error'):
+                    st.warning(f"{res.get('strategy_name', key)}: {res['error']}")
+                    continue
+                total_ret = res['total_return']  # fraction
+                ann_ret = (1 + total_ret) ** (252 / max(n_days, 1)) - 1
+                strategy_results[key] = {
+                    'total_return': total_ret * 100,
+                    'annualized_return': ann_ret * 100,
+                    'volatility': res.get('volatility_annual', 0.0) * 100,
+                    'sharpe_ratio': res.get('sharpe_ratio', 0.0),
+                    'max_drawdown': res.get('max_drawdown', 0.0) * 100,
+                    'final_value': res.get('final_value', capital),
+                    'cumulative_pnl': res.get('cumulative_pnl'),
+                    'strategy_name': res.get('strategy_name', key),
+                }
+
+            if strategy_results:
+                self.display_strategy_results(strategy_results, params)
+            else:
+                st.error("All strategies failed to run; try more capital or a different strike.")
+
         except Exception as e:
             st.error(f"Error running strategy analysis: {str(e)}")
 
@@ -2334,9 +2346,9 @@ class StreamlitGUI:
         
         strategy_names = {
             'covered_call': 'Covered Call Strategy',
-            'long_straddle': '🎯 Long Straddle Strategy', 
+            'long_straddle': 'Long Straddle Strategy', 
             'delta_neutral': 'Delta Neutral Strategy',
-            'buy_hold': '💰 Buy & Hold Benchmark'
+            'buy_hold': 'Buy & Hold Benchmark'
         }
         
         strategy_name = strategy_names.get(strategy_key, strategy_key.replace('_', ' ').title())
@@ -2451,7 +2463,7 @@ class StreamlitGUI:
             var_values = [np.percentile(daily_returns*100, p) for p in percentiles]
             
             fig.add_trace(
-                go.Bar(x=[f"{p}%" for p in percentiles], y=var_values,
+                go.Bar(x=[f"{p}%"for p in percentiles], y=var_values,
                       name='Return Percentiles', marker_color='lightcoral'),
                 row=3, col=2
             )
@@ -2495,21 +2507,21 @@ class StreamlitGUI:
             win_rate = result['win_rate']
             
             if sharpe > 1.0:
-                st.success("🟢 Excellent risk-adjusted returns")
+                st.success("Excellent risk-adjusted returns")
             elif sharpe > 0.5:
-                st.info("🟡 Good risk-adjusted returns")
+                st.info("Good risk-adjusted returns")
             else:
-                st.warning("🔴 Poor risk-adjusted returns")
+                st.warning("Poor risk-adjusted returns")
             
             if abs(max_dd) < 10:
-                st.success("🟢 Low maximum drawdown")
+                st.success("Low maximum drawdown")
             elif abs(max_dd) < 20:
-                st.info("🟡 Moderate maximum drawdown")
+                st.info("Moderate maximum drawdown")
             else:
-                st.warning("🔴 High maximum drawdown")
+                st.warning("High maximum drawdown")
         
         with col2:
-            st.markdown(f"**🎯 {strategy_key.replace('_', ' ').title()} Specifics:**")
+            st.markdown(f"** {strategy_key.replace('_', ' ').title()} Specifics:**")
             
             # Strategy-specific analysis
             if strategy_key == 'covered_call':
@@ -2535,7 +2547,7 @@ class StreamlitGUI:
                 st.write("• Benefits from long-term appreciation")
         
         # Risk management recommendations
-        st.markdown("### 🛡️ Risk Management Recommendations")
+        st.markdown("### Risk Management Recommendations")
         
         recommendations = []
         
@@ -2669,7 +2681,7 @@ class StreamlitGUI:
     def display_strategy_table(self, results: Dict[str, Dict[str, Any]]):
         """Display detailed strategy results table"""
         
-        st.markdown("### 📋 Detailed Strategy Results")
+        st.markdown("### Detailed Strategy Results")
         
         table_data = []
         strategy_map = {
@@ -2734,7 +2746,7 @@ class StreamlitGUI:
         fig.add_trace(
             go.Bar(x=strategy_names, y=[r * 100 for r in total_returns], 
                   name='Returns (%)', marker_color=colors[:len(strategy_names)],
-                  text=[f"{r:.1%}" for r in total_returns],
+                  text=[f"{r:.1%}"for r in total_returns],
                   textposition='auto'),
             row=1, col=1
         )
@@ -2743,7 +2755,7 @@ class StreamlitGUI:
         fig.add_trace(
             go.Bar(x=strategy_names, y=sharpe_ratios, 
                   name='Sharpe Ratio', marker_color=colors[:len(strategy_names)],
-                  text=[f"{s:.3f}" for s in sharpe_ratios],
+                  text=[f"{s:.3f}"for s in sharpe_ratios],
                   textposition='auto'),
             row=1, col=2
         )
@@ -2761,7 +2773,7 @@ class StreamlitGUI:
         fig.add_trace(
             go.Bar(x=strategy_names, y=[v * 100 for v in volatilities],
                   name='Volatility (%)', marker_color=colors[:len(strategy_names)],
-                  text=[f"{v:.1%}" for v in volatilities],
+                  text=[f"{v:.1%}"for v in volatilities],
                   textposition='auto'),
             row=2, col=2
         )
@@ -2770,7 +2782,7 @@ class StreamlitGUI:
         fig.add_trace(
             go.Bar(x=strategy_names, y=win_rates,
                   name='Win Rate (%)', marker_color=colors[:len(strategy_names)],
-                  text=[f"{w:.1f}%" for w in win_rates],
+                  text=[f"{w:.1f}%"for w in win_rates],
                   textposition='auto'),
             row=3, col=1
         )
@@ -2780,7 +2792,7 @@ class StreamlitGUI:
         fig.add_trace(
             go.Bar(x=strategy_names, y=risk_adj_perf,
                   name='Risk-Adj Perf', marker_color=colors[:len(strategy_names)],
-                  text=[f"{p:.3f}" for p in risk_adj_perf],
+                  text=[f"{p:.3f}"for p in risk_adj_perf],
                   textposition='auto'),
             row=3, col=2
         )
@@ -2814,16 +2826,16 @@ class StreamlitGUI:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.success(f"**🏆 Best Return**\n{strategy_names[best_return_idx]}\n{total_returns[best_return_idx]:.2%}")
+            st.success(f"** Best Return**\n{strategy_names[best_return_idx]}\n{total_returns[best_return_idx]:.2%}")
         
         with col2:
-            st.info(f"**⭐ Best Sharpe**\n{strategy_names[best_sharpe_idx]}\n{sharpe_ratios[best_sharpe_idx]:.3f}")
+            st.info(f"** Best Sharpe**\n{strategy_names[best_sharpe_idx]}\n{sharpe_ratios[best_sharpe_idx]:.3f}")
         
         with col3:
-            st.warning(f"**🛡️ Lowest Risk**\n{strategy_names[lowest_vol_idx]}\n{volatilities[lowest_vol_idx]:.2%}")
+            st.warning(f"** Lowest Risk**\n{strategy_names[lowest_vol_idx]}\n{volatilities[lowest_vol_idx]:.2%}")
         
         with col4:
-            st.success(f"**🎯 Best Win Rate**\n{strategy_names[best_win_rate_idx]}\n{win_rates[best_win_rate_idx]:.1f}%")
+            st.success(f"** Best Win Rate**\n{strategy_names[best_win_rate_idx]}\n{win_rates[best_win_rate_idx]:.1f}%")
 
     def create_strategy_risk_analysis(self, results: Dict[str, Dict[str, Any]]):
         """Create strategy risk analysis like terminal version"""
@@ -2833,7 +2845,7 @@ class StreamlitGUI:
         # Find benchmark (usually Buy & Hold)
         benchmark_name = None
         for name in strategy_names:
-            if 'buy' in name.lower() and 'hold' in name.lower():
+            if 'buy'in name.lower() and 'hold'in name.lower():
                 benchmark_name = name
                 break
         
@@ -2876,7 +2888,7 @@ class StreamlitGUI:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**🏆 Winner Analysis:**")
+            st.markdown("** Winner Analysis:**")
             st.write(f"• **{best_strategy[0]}** shows the best risk-adjusted performance")
             st.write(f"• Sharpe ratio: {best_strategy[1]['sharpe_ratio']:.3f}")
             st.write(f"• Total return: {best_strategy[1]['total_return']:.2%}")
@@ -2887,7 +2899,7 @@ class StreamlitGUI:
                 st.write("• Higher risk than benchmark")
         
         with col2:
-            st.markdown("**⚡ Recommendations:**")
+            st.markdown("** Recommendations:**")
             
             # Generate recommendations based on results
             recommendations = []
@@ -2940,7 +2952,7 @@ class StreamlitGUI:
             x=metric_names,
             y=strategy_names,
             colorscale='RdYlGn',
-            text=[[f"{val:.3f}" for val in row] for row in risk_array],
+            text=[[f"{val:.3f}"for val in row] for row in risk_array],
             texttemplate="%{text}",
             textfont={"size": 10},
             hovertemplate="Strategy: %{y}<br>Metric: %{x}<br>Value: %{text}<extra></extra>"
@@ -2961,11 +2973,11 @@ class StreamlitGUI:
         sharpe = strategy_result['sharpe_ratio']
         
         if vol < 0.15 and sharpe > 0.8:
-            return "🟢 Low Risk"
+            return "Low Risk"
         elif vol < 0.25 and sharpe > 0.5:
-            return "🟡 Medium Risk"
+            return "Medium Risk"
         else:
-            return "🔴 High Risk"
+            return "High Risk"
     
     def render_hedging_simulation(self, params: Dict[str, Any]):
         """Render hedging simulation"""
@@ -2999,50 +3011,105 @@ class StreamlitGUI:
                 help="Type of hedging strategy"
             )
         
-        if st.button("🛡️ Run Hedging Simulation", key="hedging"):
+        if st.button("Run Hedging Simulation", key="hedging"):
             with st.spinner("Running hedging simulation..."):
                 self.perform_hedging_simulation(params, hedge_steps, n_paths, hedge_type)
     
     def perform_hedging_simulation(self, params: Dict[str, Any], steps: int, paths: int, hedge_type: str):
-        """Perform hedging simulation"""
+        """Simulate dynamic hedging of a short option over GBM paths.
+
+        The hedger sells one option, then rebalances at every step:
+        - Delta hedging: hold Delta(t) shares of stock.
+        - Gamma hedging: neutralize gamma with a second (longer-dated) option,
+          then neutralize the residual delta with stock.
+        P&L is the terminal value of the whole book (premium, hedges, payoff).
+        """
         try:
-            S, K, T, r, sigma = params['S'], params['K'], params['T'], params['r'], params['sigma']
-            
-            # Create mock stock data for simulation
-            np.random.seed(42)
-            dt = T / steps
-            stock_paths = []
-            
-            for _ in range(paths):
-                prices = [S]
-                for i in range(steps):
-                    dW = np.random.normal(0, np.sqrt(dt))
-                    next_price = prices[-1] * np.exp((r - 0.5 * sigma**2) * dt + sigma * dW)
-                    prices.append(next_price)
-                stock_paths.append(prices[-1])  # Final price
-            
-            # Calculate simple P&L for demonstration
-            from models.pricing_models import BSM_price
-            initial_option_price = BSM_price(S, K, T, r, sigma, params['option_type'])
-            
-            pnl_results = []
-            for final_price in stock_paths:
-                final_option_price = max(0, final_price - K) if params['option_type'] == 'call' else max(0, K - final_price)
-                pnl = final_option_price - initial_option_price
-                pnl_results.append(pnl)
-            
-            # Create results dictionary
+            from scipy.stats import norm
+            S0, K, T, r, sigma = params['S'], params['K'], params['T'], params['r'], params['sigma']
+            option_type = params['option_type']
+            is_call = option_type == 'call'
+
+            rng = np.random.default_rng(42)
+            n_steps = int(steps)
+            n_paths = int(paths)
+            dt = T / n_steps
+
+            # Simulate all GBM paths at once: prices[path, time]
+            Z = rng.standard_normal((n_paths, n_steps))
+            log_increments = (r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z
+            prices = S0 * np.exp(np.cumsum(log_increments, axis=1))
+            prices = np.hstack([np.full((n_paths, 1), S0), prices])
+
+            def bs_d1(S, K_, tau):
+                return (np.log(S / K_) + (r + 0.5 * sigma**2) * tau) / (sigma * np.sqrt(tau))
+
+            def bs_price(S, K_, tau):
+                d1 = bs_d1(S, K_, tau)
+                d2 = d1 - sigma * np.sqrt(tau)
+                call = S * norm.cdf(d1) - K_ * np.exp(-r * tau) * norm.cdf(d2)
+                if is_call:
+                    return call
+                return call - S + K_ * np.exp(-r * tau)  # put-call parity
+
+            def bs_delta(S, K_, tau):
+                d1 = bs_d1(S, K_, tau)
+                return norm.cdf(d1) if is_call else norm.cdf(d1) - 1.0
+
+            def bs_gamma(S, K_, tau):
+                d1 = bs_d1(S, K_, tau)
+                return norm.pdf(d1) / (S * sigma * np.sqrt(tau))
+
+            premium = float(bs_price(np.array([S0]), K, T)[0])
+            payoff = np.maximum(prices[:, -1] - K, 0) if is_call else np.maximum(K - prices[:, -1], 0)
+
+            # Unhedged short option book, for comparison
+            unhedged_pnl = premium * np.exp(r * T) - payoff
+            growth = np.exp(r * dt)
+
+            if hedge_type == "Delta Hedging":
+                cash = np.full(n_paths, premium)
+                stock_pos = np.zeros(n_paths)
+                for i in range(n_steps):
+                    tau = T - i * dt
+                    target = bs_delta(prices[:, i], K, tau)
+                    cash -= (target - stock_pos) * prices[:, i]
+                    stock_pos = target
+                    cash *= growth
+                pnl = cash + stock_pos * prices[:, -1] - payoff
+            else:  # Gamma (delta-gamma) hedging with a longer-dated hedge option
+                K_h = K * 1.05
+                T_h = T + 0.25  # hedge option outlives the hedged option
+                cash = np.full(n_paths, premium)
+                stock_pos = np.zeros(n_paths)
+                opt_pos = np.zeros(n_paths)
+                for i in range(n_steps):
+                    tau = T - i * dt
+                    tau_h = T_h - i * dt
+                    S_i = prices[:, i]
+                    n_opt = bs_gamma(S_i, K, tau) / bs_gamma(S_i, K_h, tau_h)
+                    n_stock = bs_delta(S_i, K, tau) - n_opt * bs_delta(S_i, K_h, tau_h)
+                    cash -= (n_opt - opt_pos) * bs_price(S_i, K_h, tau_h)
+                    cash -= (n_stock - stock_pos) * S_i
+                    opt_pos, stock_pos = n_opt, n_stock
+                    cash *= growth
+                hedge_liquidation = opt_pos * bs_price(prices[:, -1], K_h, T_h - T)
+                pnl = cash + stock_pos * prices[:, -1] + hedge_liquidation - payoff
+
             results = {
-                'mean_pnl': np.mean(pnl_results),
-                'std_pnl': np.std(pnl_results),
-                'max_pnl': np.max(pnl_results),
-                'min_pnl': np.min(pnl_results),
-                'pnl_paths': pnl_results
+                'mean_pnl': float(np.mean(pnl)),
+                'std_pnl': float(np.std(pnl)),
+                'max_pnl': float(np.max(pnl)),
+                'min_pnl': float(np.min(pnl)),
+                'pnl_paths': pnl.tolist(),
+                'std_unhedged': float(np.std(unhedged_pnl)),
+                'hedge_type': hedge_type,
+                'n_rebalances': n_steps,
+                'premium': premium,
             }
-            
-            # Display results
+
             self.display_hedging_results(results, params)
-            
+
         except Exception as e:
             st.error(f"Error running hedging simulation: {str(e)}")
     
@@ -3063,9 +3130,19 @@ class StreamlitGUI:
         
         with col4:
             st.metric("Max Loss", f"${results['min_pnl']:.6f}")
-        
+
+        # Hedging effectiveness vs an unhedged short option
+        if results.get('std_unhedged'):
+            reduction = (1 - results['std_pnl'] / results['std_unhedged']) * 100
+            st.info(
+                f"{results.get('hedge_type', 'Hedging')} with "
+                f"{results.get('n_rebalances', '?')} rebalances cut P&L standard deviation by "
+                f"{reduction:.1f}% vs an unhedged short option "
+                f"(${results['std_unhedged']:.4f} to ${results['std_pnl']:.4f})."
+            )
+
         # P&L distribution
-        if 'pnl_paths' in results:
+        if 'pnl_paths'in results:
             fig = go.Figure()
             
             fig.add_trace(go.Histogram(
@@ -3105,7 +3182,7 @@ class StreamlitGUI:
         with col2:
             n_steps = st.number_input("Time steps per path", min_value=50, max_value=500, value=100, step=10)
         
-        if st.button("🎲 Run Monte Carlo Simulation", key="run_mc"):
+        if st.button("Run Monte Carlo Simulation", key="run_mc"):
             with st.spinner(f"Generating {n_paths:,} paths with {n_steps} time steps..."):
                 
                 # Generate Monte Carlo paths
@@ -3129,7 +3206,7 @@ class StreamlitGUI:
                 std_error = np.exp(-r * T) * np.std(payoffs) / np.sqrt(n_paths)
                 
                 # Display results metrics
-                st.markdown("### 🎯 Monte Carlo Simulation Results")
+                st.markdown("### Monte Carlo Simulation Results")
                 
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
@@ -3266,7 +3343,7 @@ class StreamlitGUI:
         self.create_comprehensive_hedging_plots(mock_results)
         
         # Add hedging effectiveness analysis
-        st.markdown("### ⚡ Hedging Effectiveness")
+        st.markdown("### Hedging Effectiveness")
         self.analyze_hedging_effectiveness(mock_results)
 
     def create_comprehensive_hedging_plots(self, results: Dict):
@@ -3336,7 +3413,7 @@ class StreamlitGUI:
         var_values = [np.percentile(daily_pnl, p) for p in var_levels]
         
         fig.add_trace(
-            go.Bar(x=[f"{p}%" for p in var_levels], y=var_values,
+            go.Bar(x=[f"{p}%"for p in var_levels], y=var_values,
                   name='P&L Percentiles', marker_color='lightcoral'),
             row=3, col=2
         )
@@ -3391,7 +3468,7 @@ class StreamlitGUI:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**🎯 Hedge Effectiveness Analysis:**")
+            st.markdown("** Hedge Effectiveness Analysis:**")
             
             # Calculate effectiveness metrics
             pnl_vol = results['volatility_pnl']
@@ -3406,11 +3483,11 @@ class StreamlitGUI:
             st.write(f"• Unhedged Volatility: {unhedged_vol:.2%}")
             
             if effectiveness > 0.8:
-                st.success("🟢 Excellent hedging performance")
+                st.success("Excellent hedging performance")
             elif effectiveness > 0.6:
-                st.info("🟡 Good hedging performance")
+                st.info("Good hedging performance")
             else:
-                st.warning("🔴 Poor hedging performance")
+                st.warning("Poor hedging performance")
         
         with col2:
             st.markdown("**INFO: Hedging Insights:**")
@@ -3430,13 +3507,13 @@ class StreamlitGUI:
                 insights.append("High rebalancing frequency - monitor transaction costs")
             
             if abs(results['final_pnl']) < 100:
-                insights.append("🎯 Near-zero final P&L indicates good delta neutrality")
+                insights.append("Near-zero final P&L indicates good delta neutrality")
             
             if not insights:
                 insights = [
                     "Hedging performance within normal ranges",
-                    "🔍 Monitor delta evolution for optimal rebalancing",
-                    "💰 Balance transaction costs vs hedge effectiveness"
+                    "Monitor delta evolution for optimal rebalancing",
+                    "Balance transaction costs vs hedge effectiveness"
                 ]
             
             for insight in insights[:4]:
@@ -3568,10 +3645,10 @@ class StreamlitGUI:
                 for param_name in param_names:
                     key = param_name.lower().replace(" ", "_")
                     
-                    if "strike" in param_name.lower():
-                        if "lower" in param_name.lower() or "put" in param_name.lower():
+                    if "strike"in param_name.lower():
+                        if "lower"in param_name.lower() or "put"in param_name.lower():
                             default_val = spot_price * 0.95
-                        elif "upper" in param_name.lower() or "call" in param_name.lower():
+                        elif "upper"in param_name.lower() or "call"in param_name.lower():
                             default_val = spot_price * 1.05
                         else:
                             default_val = spot_price
@@ -3585,7 +3662,7 @@ class StreamlitGUI:
                             key=f"strike_{key}"
                         )
                     
-                    elif "premium" in param_name.lower():
+                    elif "premium"in param_name.lower():
                         default_val = spot_price * 0.02
                         strategy_params[key] = st.number_input(
                             f"{param_name} ($)",
@@ -3672,7 +3749,7 @@ class StreamlitGUI:
     def render_popular_strategies_analysis(self, analyzer: OptionsPayoffAnalyzer, params: Dict[str, Any]):
         """Render popular strategies analysis"""
         
-        st.subheader("🌟 Popular Options Strategies")
+        st.subheader("Popular Options Strategies")
         
         if st.button("Analyze Popular Strategies", type="primary"):
             with st.spinner("Analyzing popular strategies..."):
@@ -3682,15 +3759,15 @@ class StreamlitGUI:
                     results = list(strategies.values())
                     
                     # Display overview
-                    st.markdown("### 📋 Strategy Overview")
+                    st.markdown("### Strategy Overview")
                     
                     # Create metrics columns
                     cols = st.columns(len(results))
                     
                     for i, (name, result) in enumerate(strategies.items()):
                         with cols[i % len(cols)]:
-                            max_profit = f"${result.max_profit:.2f}" if result.max_profit != float('inf') else "Unlimited"
-                            max_loss = f"${abs(result.max_loss):.2f}" if result.max_loss != float('-inf') else "Unlimited"
+                            max_profit = f"${result.max_profit:.2f}"if result.max_profit != float('inf') else "Unlimited"
+                            max_loss = f"${abs(result.max_loss):.2f}"if result.max_loss != float('-inf') else "Unlimited"
                             
                             st.metric(
                                 label=name,
@@ -3711,11 +3788,11 @@ class StreamlitGUI:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            max_profit_str = f"${result.max_profit:.2f}" if result.max_profit != float('inf') else "Unlimited"
+            max_profit_str = f"${result.max_profit:.2f}"if result.max_profit != float('inf') else "Unlimited"
             st.metric("Max Profit", max_profit_str)
         
         with col2:
-            max_loss_str = f"${abs(result.max_loss):.2f}" if result.max_loss != float('-inf') else "Unlimited"
+            max_loss_str = f"${abs(result.max_loss):.2f}"if result.max_loss != float('-inf') else "Unlimited"
             st.metric("Max Loss", max_loss_str)
         
         with col3:
