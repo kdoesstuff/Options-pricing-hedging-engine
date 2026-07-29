@@ -12,7 +12,7 @@ Built as the course project for **MTL732 Financial Mathematics, IIT Delhi**.
 
 ## What's inside
 
-**Pricing models** — four independent engines, cross-validated against each other:
+**Pricing models** - four independent engines, cross-validated against each other:
 
 | Model | Method | Notes |
 |---|---|---|
@@ -21,15 +21,15 @@ Built as the course project for **MTL732 Financial Mathematics, IIT Delhi**.
 | Monte Carlo | Risk-neutral GBM simulation | Standard-error bands, convergence diagnostics |
 | Machine learning | Gradient-boosted trees (scikit-learn) | Trained on 400k BSM-priced samples, test RMSE ≈ $0.87 |
 
-**Risk & Greeks** — full sensitivities (Δ, Γ, ν, Θ, ρ), Delta/Gamma surfaces across spot and volatility, and implied-volatility recovery via Newton–Raphson and Brent solvers.
+**Risk & Greeks** - full sensitivities (Δ, Γ, ν, Θ, ρ), Delta/Gamma surfaces across spot and volatility, and implied-volatility recovery via Newton-Raphson and Brent solvers.
 
-**Hedging simulation** — discrete-time delta and delta-gamma hedging over GBM paths with transaction costs; P&L distribution vs. rebalancing frequency.
+**Hedging simulation** - discrete time delta and delta-gamma hedging over GBM paths with transaction costs; P&L distribution vs. rebalancing frequency.
 
-**Trading strategies** — covered call, long straddle, delta-neutral speculation backtested on real equity data against a buy-and-hold benchmark (Sharpe, drawdown, cumulative P&L), plus **15+ option payoff structures** (spreads, straddles, strangles, butterflies, iron condors, collars) with automated breakeven and max-profit/loss detection.
+**Trading strategies** - covered call, long straddle, delta-neutral speculation backtested on real equity data against a buy-and-hold benchmark (Sharpe, drawdown, cumulative P&L), plus **15+ option payoff structures** (spreads, straddles, strangles, butterflies, iron condors, collars) with automated breakeven and max-profit/loss detection.
 
-**Convergence analysis** — CRR → BSM as tree steps grow (N ≤ 1000) and Monte Carlo stabilization, with absolute/relative error plots.
+**Convergence analysis** - CRR → BSM as tree steps grow (N ≤ 1000) and Monte Carlo stabilization, with absolute/relative error plots.
 
-**Market data** — live prices and historical volatility via yfinance for any ticker, with bundled 1-year snapshots (AAPL, MSFT, GOOGL, TSLA, AMZN) as an automatic offline fallback, so the app works even when the data API is unavailable.
+**Market data** - live prices and historical volatility via yfinance for any ticker, with bundled 1-year snapshots (AAPL, MSFT, GOOGL, TSLA, AMZN) as an automatic offline fallback, so the app works even when the data API is unavailable.
 
 ## Quick start
 
@@ -45,7 +45,7 @@ streamlit run streamlit_gui.py
 python project_main.py --nogui --real
 ```
 
-The app opens at `http://localhost:8501`: pick a ticker (or set parameters manually), then explore the tabs — model comparison, Greeks surfaces, binomial trees, payoff diagrams, hedging simulation, and strategy backtests.
+The app opens at `http://localhost:8501`: pick a ticker (or set parameters manually), then explore the tabs - model comparison, Greeks surfaces, binomial trees, payoff diagrams, hedging simulation, and strategy backtests.
 
 ## Project structure
 
@@ -81,7 +81,7 @@ CRR (500 steps)     $2.7719
 Monte Carlo (100k)  $2.7694 ± 0.02
 ```
 
-CRR discretization error → 0 as N grows; Monte Carlo error shrinks at the O(M^-1/2) rate — both verified in the convergence tab.
+CRR discretization error → 0 as N grows; Monte Carlo error shrinks at the O(M^-1/2) rate - both verified in the convergence tab.
 
 ## Theory notes
 
