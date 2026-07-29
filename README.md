@@ -1,6 +1,6 @@
 # Option Pricing, Risk Analysis & Hedging Lab
 
-**Multi-model option pricing, Greeks, implied volatility, dynamic hedging, and strategy backtesting — with an interactive Streamlit app.**
+**Multi-model option pricing, Greeks, implied volatility, dynamic hedging, and strategy backtesting, with an interactive Streamlit app.**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/streamlit-1.28+-red.svg)](https://streamlit.io/)
